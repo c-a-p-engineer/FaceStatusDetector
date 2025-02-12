@@ -59,21 +59,49 @@
     .recording {
       background-color: #ff4444 !important;
     }
+    /* オーバーレイ：起動確認用 */
+    #confirmation-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #confirmation-overlay p {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
   </style>
   <!-- tracking.js と顔検出用データ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/data/face-min.js"></script>
 </head>
 <body>
+  <!-- 起動確認用オーバーレイ -->
+  <div id="confirmation-overlay">
+    <p>顔認識を開始しますか？</p>
+    <div>
+      <button id="confirmYes">はい</button>
+      <button id="confirmNo">いいえ</button>
+    </div>
+  </div>
+
   <!-- カメラ映像用コンテナ -->
-  <div id="camera-container">
+  <div id="camera-container" style="display:none;">
     <!-- カメラ映像（表示する） -->
     <video id="video" autoplay playsinline></video>
     <!-- 合成表示用 canvas（映像＋オーバーレイ） -->
     <canvas id="canvas"></canvas>
   </div>
   <!-- 撮影用コントロール -->
-  <div id="controls">
+  <div id="controls" style="display:none;">
     <button id="captureImage">📸 画像撮影</button>
     <button id="toggleRecording">🎥 動画撮影開始</button>
     <button id="toggleCamera">🔄 カメラ切替</button>
@@ -87,15 +115,18 @@
     const toggleRecordingBtn = document.getElementById('toggleRecording');
     const toggleCameraBtn = document.getElementById('toggleCamera');
     const container = document.getElementById('camera-container');
+    const controls = document.getElementById('controls');
+    const confirmationOverlay = document.getElementById('confirmation-overlay');
+    const confirmYesBtn = document.getElementById('confirmYes');
+    const confirmNoBtn = document.getElementById('confirmNo');
 
     // カメラ切替用の facingMode 状態。初期はフロント（user）
     let currentFacingMode = "user";
     // 現在のストリームを保持する変数
     let currentStream;
-
+    
     // カメラ映像取得のための関数
     function startCamera(facingMode) {
-      // すでにストリームがあれば停止
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
       }
@@ -111,8 +142,26 @@
         .catch(err => console.error("カメラアクセスエラー:", err));
     }
 
-    // 初期カメラ起動
-    startCamera(currentFacingMode);
+    // 確認オーバーレイで「はい」がクリックされた場合
+    confirmYesBtn.addEventListener('click', function() {
+      confirmationOverlay.style.display = 'none';
+      // カメラ映像用コンテナと撮影用コントロールを表示
+      container.style.display = 'flex';
+      controls.style.display = 'block';
+      // 初期カメラ起動
+      startCamera(currentFacingMode);
+    });
+    // 「いいえ」がクリックされた場合
+    confirmNoBtn.addEventListener('click', function() {
+      // オーバーレイ内の内容を更新してリロード案内を表示
+      confirmationOverlay.innerHTML = `
+        <p>開始する場合は画面をリロードしてください。</p>
+        <button id="reloadBtn">リロード</button>
+      `;
+      document.getElementById('reloadBtn').addEventListener('click', function() {
+        location.reload();
+      });
+    });
 
     // video のメタデータ読み込み時に、実際の解像度で canvas のサイズを設定
     video.addEventListener('loadedmetadata', function() {
